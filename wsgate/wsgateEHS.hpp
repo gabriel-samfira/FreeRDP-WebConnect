@@ -122,6 +122,7 @@ namespace wsgate{
             string m_sOpenStackUserDomainId;
             string m_sOpenStackKeystoneVersion;
             string m_sOpenStackRegion;
+            string m_sOpenStackCAFile;
             string m_sHyperVHostUsername;
             string m_sHyperVHostPassword;
 

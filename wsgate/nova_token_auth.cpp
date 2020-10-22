@@ -41,7 +41,8 @@ private:
                                                                            std::string osUserName,
                                                                            std::string osPassword,
                                                                            std::string osProjectName,
-                                                                           std::string osRegion);
+                                                                           std::string osRegion,
+                                                                           std::string caFile);
 
     std::pair<std::string, std::string> get_auth_token_data_v3(std::string osAuthUrl,
                                                                            std::string osUserName,
@@ -52,11 +53,13 @@ private:
                                                                            std::string osUserDomainName,
                                                                            std::string osProjectDomainId,
                                                                            std::string osUserDomainId,
-                                                                           std::string osRegion);
+                                                                           std::string osRegion,
+                                                                           std::string caFile);
 
     web::json::value get_console_token_data(std::string authToken,
                                             std::string novaUrl,
-                                            std::string consoleToken);
+                                            std::string consoleToken,
+                                            std::string caFile);
 
 public:
     virtual nova_console_info get_console_info(std::string osAuthUrl,
@@ -70,7 +73,8 @@ public:
                                                std::string osUserDomainId,
                                                std::string consoleToken,
                                                std::string keystoneVersion,
-                                               std::string osRegion);
+                                               std::string osRegion,
+                                               std::string caFile);
 };
 
 
@@ -103,7 +107,8 @@ json::value nova_console_token_auth_impl::get_json_from_response(
 std::pair<std::string, std::string> nova_console_token_auth_impl::get_auth_token_data_v2(
     string osAuthUrl, string osUserName,
     string osPassword, string osProjectName,
-    string osRegion)
+    string osRegion,
+    string caFile)
 {
     auto jsonRequestBody = json::value::object();
     auto auth = json::value::object();
@@ -119,7 +124,15 @@ std::pair<std::string, std::string> nova_console_token_auth_impl::get_auth_token
     request.headers().set_content_type(U("application/json"));
     request.set_body(jsonRequestBody);
 
-    http::client::http_client client(to_string_t(osAuthUrl));
+    web::http::client::http_client_config config;
+    if (!caFile.empty()) {
+        // Load CA certificate
+        config.set_ssl_context_callback([=](boost::asio::ssl::context &ctx){
+            ctx.load_verify_file(to_string_t(caFile));
+        });
+    }
+    http::client::http_client client(to_string_t(osAuthUrl), config);
+
     auto response_json = get_json_from_response(execute_request_and_get_response(client, request));
 
     utility::string_t authToken;
@@ -154,7 +167,8 @@ std::pair<std::string, std::string> nova_console_token_auth_impl::get_auth_token
     string osProjectId,
     string osProjectDomainName, string osUserDomainName,
     string osProjectDomainId, string osUserDomainId,
-    string osRegion)
+    string osRegion,
+    string caFile)
 {
     auto jsonRequestBody = json::value::object();
     auto auth = json::value::object();
@@ -210,7 +224,16 @@ std::pair<std::string, std::string> nova_console_token_auth_impl::get_auth_token
     request.headers().set_content_type(U("application/json"));
     request.set_body(jsonRequestBody);
 
-    http::client::http_client client(to_string_t(osAuthUrl));
+    web::http::client::http_client_config config;
+    if (!caFile.empty()) {
+        // Load CA certificate
+        config.set_ssl_context_callback([=](boost::asio::ssl::context &ctx){
+            ctx.load_verify_file(to_string_t(caFile));
+        });
+    }
+    http::client::http_client client(to_string_t(osAuthUrl), config);
+
+
     auto response = execute_request_and_get_response(client, request);
     auto response_json = get_json_from_response(response);
 
@@ -234,9 +257,17 @@ std::pair<std::string, std::string> nova_console_token_auth_impl::get_auth_token
 }
 
 json::value nova_console_token_auth_impl::get_console_token_data(
-    string authToken, string novaUrl, string consoleToken)
+    string authToken, string novaUrl, string consoleToken, string caFile)
 {
-    http::client::http_client client(to_string_t(novaUrl));
+    web::http::client::http_client_config config;
+    if (!caFile.empty()) {
+        // Load CA certificate
+        config.set_ssl_context_callback([=](boost::asio::ssl::context &ctx){
+            ctx.load_verify_file(to_string_t(caFile));
+        });
+    }
+    http::client::http_client client(to_string_t(novaUrl), config);
+
     http::uri_builder console_token_uri;
     console_token_uri.append(U("os-console-auth-tokens"));
     console_token_uri.append(to_string_t(consoleToken));
@@ -257,7 +288,8 @@ nova_console_info nova_console_token_auth_impl::get_console_info(
     std::string osProjectDomainName, std::string osUserDomainName,
     std::string osProjectDomainId, std::string osUserDomainId,
     std::string consoleToken, std::string keystoneVersion,
-    std::string osRegion)
+    std::string osRegion,
+    std::string caFile)
 {
     std::string authToken;
     std::string novaUrl;
@@ -267,7 +299,8 @@ nova_console_info nova_console_token_auth_impl::get_console_info(
                                                               osUserName,
                                                               osPassword,
                                                               osProjectName,
-                                                              osRegion);
+                                                              osRegion,
+                                                              caFile);
     }
     else if (keystoneVersion == KEYSTONE_V3){
         std::tie(authToken, novaUrl) = get_auth_token_data_v3(osAuthUrl,
@@ -279,7 +312,8 @@ nova_console_info nova_console_token_auth_impl::get_console_info(
                                                               osUserDomainName,
                                                               osProjectDomainId,
                                                               osUserDomainId,
-                                                              osRegion);
+                                                              osRegion,
+                                                              caFile);
     }
     else{
         throw std::invalid_argument("Unknown Keystone version");
@@ -290,7 +324,8 @@ nova_console_info nova_console_token_auth_impl::get_console_info(
     auto consoleTokenData = get_console_token_data(
         authToken,
         novaUrl,
-        consoleToken);
+        consoleToken,
+        caFile);
 
     info.host = to_utf8string(consoleTokenData[U("console")][U("host")].as_string());
 

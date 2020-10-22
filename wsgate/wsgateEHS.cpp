@@ -290,7 +290,8 @@ namespace wsgate{
                                                                         m_sOpenStackProjectId,
                                                                         m_sOpenStackProjectDomainName, m_sOpenStackUserDomainName,
                                                                         m_sOpenStackProjectDomainId, m_sOpenStackUserDomainId,
-                                                                        tokenId, m_sOpenStackKeystoneVersion, m_sOpenStackRegion);
+                                                                        tokenId, m_sOpenStackKeystoneVersion, m_sOpenStackRegion,
+                                                                        m_sOpenStackCAFile);
 
                 log::info << "Host: " << info.host << " Port: " << info.port
                             << " Internal access path: " << info.internal_access_path
@@ -969,6 +970,12 @@ namespace wsgate{
                 }
                 else {
                     m_sOpenStackKeystoneVersion = KEYSTONE_V2;
+                }
+                if (pt.get_optional<std::string>("openstack.cafile")) {
+                    m_sOpenStackCAFile.assign(pt.get<std::string>("openstack.cafile"));
+                }
+                else {
+                    m_sOpenStackCAFile.clear();
                 }
                 if (pt.get_optional<std::string>("openstack.region")) {
                     m_sOpenStackRegion.assign(pt.get<std::string>("openstack.region"));
